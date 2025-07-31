@@ -206,7 +206,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         }
 
         // Send request to stitch all subfolders
-        await this.Stitcher.StitchSubfolders(stitchDirs, context.CancellationToken);
+        await this.Stitcher.StitchSubfolders(this, stitchDirs, context.CancellationToken);
         return 0;
     }
 
@@ -233,8 +233,38 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         }
 
         // Send request to stitch selected files
-        await this.Stitcher.StitchFiles(this.Files, context.CancellationToken);
+        await this.Stitcher.StitchFiles(this, this.Files, GenerateOutputName(this.Files), context.CancellationToken);
         return 0;
+    }
+
+    /// <summary>
+    /// Generates the output file name for a collection of files to stitch
+    /// </summary>
+    /// <param name="files">Files to stitch</param>
+    /// <returns>The resulting stitched file name</returns>
+    private string GenerateOutputName(FileInfo[] files)
+    {
+        string result = string.Join(this.Separator, files.Select(f => f.Name)) + files[0].Extension;
+        if (!string.IsNullOrEmpty(this.Prefix))
+        {
+            result = this.Prefix + result;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Generates the output file name for a subdirectory to stitch
+    /// </summary>
+    /// <param name="subdirectory">Subdirectory to stitch</param>
+    /// <returns>The resulting stitching file name</returns>
+    public string GenerateOutputName(StitchDir subdirectory)
+    {
+        string result = subdirectory.Directory.Name + subdirectory.Files[0].Extension;
+        if (!string.IsNullOrEmpty(this.Prefix))
+        {
+            result = this.Prefix + result;
+        }
+        return result;
     }
 
     /// <summary>

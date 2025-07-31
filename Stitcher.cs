@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.ComponentModel;
+using ImageMagick;
+using Microsoft.Extensions.Logging;
 
 namespace ImageStitcher;
 
@@ -21,9 +23,11 @@ public class Stitcher(ILogger<Stitcher> logger)
     /// <param name="token">Cancellation token</param>
     public async Task StitchSubfolders(ImageStitcherCommand command, IReadOnlyList<StitchDir> subfolders, CancellationToken token)
     {
+        this.Logger.LogInformation("Stitching subfolder");
         await Parallel.ForEachAsync(subfolders, token, async (subfolder, cancellationToken) =>
         {
-            await StitchFiles(command, subfolder.Files, cancellationToken);
+            this.Logger.LogInformation("Stitching subfolder {Subfolder}", subfolder.Directory.FullName);
+            await StitchFiles(command, subfolder.Files, command.GenerateOutputName(subfolder), cancellationToken);
         });
     }
 
@@ -32,8 +36,35 @@ public class Stitcher(ILogger<Stitcher> logger)
     /// </summary>
     /// <param name="command">Command data</param>
     /// <param name="files">Files to stitch</param>
+    /// <param name="outputName">Stitched file name</param>
     /// <param name="token">Cancellation token</param>
-    public async ValueTask StitchFiles(ImageStitcherCommand command, IEnumerable<FileInfo> files, CancellationToken token)
+    public async ValueTask StitchFiles(ImageStitcherCommand command, FileInfo[] files, string outputName, CancellationToken token)
     {
+        using MagickImageCollection original = new();
+        if (command.Reverse)
+        {
+            for (int i = files.Length - 1; i >= 0; i--)
+            {
+                original.Add(new MagickImage(files[i]));
+            }
+        }
+        else
+        {
+            foreach (FileInfo file in files)
+            {
+                original.Add(new MagickImage(file));
+            }
+        }
+
+        using IMagickImage<byte> stitched = command.Direction switch
+        {
+            Direction.Horizontal => original.AppendHorizontally(),
+            Direction.Vertical   => original.AppendVertically(),
+            _                    => throw new InvalidEnumArgumentException(nameof(command.Direction), (int)command.Direction, typeof(Direction))
+        };
+
+        string outputPath = Path.Combine(command.RootDir!.FullName, outputName);
+        await stitched.WriteAsync(outputPath, token);
+        this.Logger.LogInformation("Stitched file {Path}", outputPath);
     }
 }
