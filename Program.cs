@@ -17,4 +17,22 @@ Cli.Ext.ConfigureServices(services =>
     });
 });
 
-await Cli.RunAsync<ImageStitcherCommand>(args);
+int result;
+if (args is [])
+{
+    result = await Cli.RunAsync<ImageStitcherCommand>("-h");
+}
+else
+{
+    try
+    {
+        result = await Cli.RunAsync<ImageStitcherCommand>(args);
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
+        result = 1;
+    }
+}
+
+return result;
