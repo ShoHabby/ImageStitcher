@@ -15,6 +15,8 @@ Cli.Ext.ConfigureServices(services =>
             options.TimestampFormat = "HH:mm:ss ";
         });
     });
+
+    services.AddSingleton<Stitcher>();
 });
 
 int result;

@@ -1,5 +1,5 @@
-﻿using DotMake.CommandLine;
-using JetBrains.Annotations;
+﻿using System.Collections.Immutable;
+using DotMake.CommandLine;
 using Microsoft.Extensions.Logging;
 
 namespace ImageStitcher;
@@ -10,26 +10,40 @@ public enum Direction
     Vertical,
 
     // For parsing purposes
-    [UsedImplicitly, Obsolete($"Use {nameof(Horizontal)} instead", true)]
+    [Obsolete($"Use {nameof(Horizontal)} instead", true)]
     H = Horizontal,
-    [UsedImplicitly, Obsolete($"Use {nameof(Vertical)} instead", true)]
+    [Obsolete($"Use {nameof(Vertical)} instead", true)]
     V = Vertical
 }
 
 [CliCommand(Description = "Image stitcher utility")]
-public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger) : ICliRunAsyncWithContextAndReturn
+public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher stitcher) : ICliRunAsyncWithContextAndReturn
 {
+    private static readonly ImmutableArray<string> ValidExtensions =
+    [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".jfif",
+        ".tiff",
+        ".bmp",
+        ".webp",
+        ".avif"
+    ];
+
     private ILogger Logger { get; } = logger;
+
+    private Stitcher Stitcher { get; } = stitcher;
 
     [CliArgument(Description = "Direction to stitch the files in, h for horizontal, v for vertical",
                  Arity = CliArgumentArity.ExactlyOne, AllowedValues = ["h", "v"])]
     public Direction Direction { get; set; }
 
     [CliArgument(Description = "List of files to stitch together",
-                 Arity = CliArgumentArity.ZeroOrMore, ValidationRules = CliValidationRules.ExistingFileOrDirectory)]
-    public FileSystemInfo[] Data { get; set; } = [];
+                 Arity = CliArgumentArity.ZeroOrMore, ValidationRules = CliValidationRules.ExistingFile)]
+    public FileInfo[] Files { get; set; } = [];
 
-    [CliOption(Description = "If all subfolders at the callsite should be stitched together, <data> should *not* be used with this option",
+    [CliOption(Description = "If all subfolders at the callsite should be stitched together, <files> should *not* be used with this option",
                Arity = CliArgumentArity.ZeroOrOne, Alias = "-a")]
     public bool AllSubfolders { get; set; }
 
@@ -44,9 +58,72 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger) : ICliRu
     public string Separator { get; set; } = "-";
 
     /// <inheritdoc />
-    public Task<int> RunAsync(CliContext cliContext)
+    public async Task<int> RunAsync(CliContext context)
     {
-        cliContext.ShowValues();
-        return Task.FromResult(0);
+        #if DEBUG
+        context.ShowValues();
+        #endif
+
+        if (this.AllSubfolders && this.Files is not [])
+        {
+            return await RunAllSubfolders(context);
+        }
+
+        switch (this.Files.Length)
+        {
+            case 0:
+                this.Logger.LogError("Either <files> or --all-subfolder need to be specified");
+                return 1;
+
+            case 1:
+                this.Logger.LogWarning("Only one file specified, no stitching to do");
+                return 0;
+
+            default:
+                return await RunFiles(context);
+        }
+    }
+
+    private async Task<int> RunAllSubfolders(CliContext context)
+    {
+        if (this.Files is not [])
+        {
+            this.Logger.LogError("Cannot use --all-subfolders option when <files> are specified.");
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private async Task<int> RunFiles(CliContext context)
+    {
+        string[] extensions = Array.ConvertAll(this.Files, f => f.Extension);
+        if (!AllExtensionsEqual(extensions))
+        {
+            this.Logger.LogError("All file extensions to stitch must be the same");
+            return 1;
+        }
+
+        if (!ValidExtensions.Contains(extensions[0]))
+        {
+            this.Logger.LogError("Unknown file extension to stitch \"{Extension}\"", extensions[0]);
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private static bool AllExtensionsEqual(ReadOnlySpan<string> extensions)
+    {
+        string first = extensions[0];
+        foreach (string other in extensions[1..])
+        {
+            if (first != other)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
