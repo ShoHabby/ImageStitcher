@@ -3,6 +3,7 @@ using ImageStitcher;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+// DI Configuration
 Cli.Ext.ConfigureServices(services =>
 {
     services.AddLogging(builder =>
@@ -22,17 +23,20 @@ Cli.Ext.ConfigureServices(services =>
 int result;
 if (args is [])
 {
-    result = await Cli.RunAsync<ImageStitcherCommand>("-h");
+    // If no args, print help
+    result = await Cli.RunAsync<ImageStitcherCommand>(["-h"]);
 }
 else
 {
     try
     {
+        // Try running the command
         result = await Cli.RunAsync<ImageStitcherCommand>(args);
     }
     catch (Exception e)
     {
-        Console.WriteLine(e);
+        // Log exceptions
+        await Console.Error.WriteLineAsync($"[{e.GetType().Name}]: {e.Message}\n{e.StackTrace}");
         result = 1;
     }
 }

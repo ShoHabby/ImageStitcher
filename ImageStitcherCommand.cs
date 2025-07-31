@@ -1,9 +1,12 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections.Frozen;
 using DotMake.CommandLine;
 using Microsoft.Extensions.Logging;
 
 namespace ImageStitcher;
 
+/// <summary>
+/// Stitching direction enum
+/// </summary>
 public enum Direction
 {
     Horizontal,
@@ -16,10 +19,25 @@ public enum Direction
     V = Vertical
 }
 
+/// <summary>
+/// Subdirectory to stitch data
+/// </summary>
+/// <param name="Directory">Directory object</param>
+/// <param name="Files">Valid files of directory to stitch</param>
+public readonly record struct StitchDir(DirectoryInfo Directory, FileInfo[] Files);
+
+/// <summary>
+/// Image stitcher command
+/// </summary>
+/// <param name="logger">Command logger</param>
+/// <param name="stitcher">Stitcher service</param>
 [CliCommand(Description = "Image stitcher utility")]
 public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher stitcher) : ICliRunAsyncWithContextAndReturn
 {
-    private static readonly ImmutableArray<string> ValidExtensions =
+    /// <summary>
+    /// Valid extensions list
+    /// </summary>
+    private static readonly FrozenSet<string> ValidExtensions =
     [
         ".png",
         ".jpg",
@@ -31,48 +49,105 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         ".avif"
     ];
 
+    /// <summary>
+    /// Command logger
+    /// </summary>
     private ILogger Logger { get; } = logger;
 
+    /// <summary>
+    /// Stitcher service
+    /// </summary>
     private Stitcher Stitcher { get; } = stitcher;
 
+    /// <summary>
+    /// Direction to stitch the files in
+    /// </summary>
     [CliArgument(Description = "Direction to stitch the files in, h for horizontal, v for vertical",
                  Arity = CliArgumentArity.ExactlyOne, AllowedValues = ["h", "v"])]
     public Direction Direction { get; set; }
 
+    /// <summary>
+    /// List of files to stitch together
+    /// </summary>
     [CliArgument(Description = "List of files to stitch together",
                  Arity = CliArgumentArity.ZeroOrMore, ValidationRules = CliValidationRules.ExistingFile)]
     public FileInfo[] Files { get; set; } = [];
 
-    [CliOption(Description = "If all subfolders at the callsite should be stitched together, <files> should *not* be used with this option",
+    /// <summary>
+    /// If all subdirectories should be stitched together
+    /// </summary>
+    [CliOption(Description = "Stitches all the files in the subdirectories of --root-dir instead of a list of files, defaults to current working directory if unspecified",
                Arity = CliArgumentArity.ZeroOrOne, Alias = "-a")]
-    public bool AllSubfolders { get; set; }
+    public bool AllSubdirs { get; set; }
 
+    /// <summary>
+    /// Root directory from where to stitch subdirectories when stitching them all together
+    /// </summary>
+    [CliOption(Description = "Root directory from where to stitch subdirectories with --all-subdirs",
+               Required = false, Arity = CliArgumentArity.ZeroOrOne, Alias = "-d", ValidationRules = CliValidationRules.ExistingDirectory)]
+    public DirectoryInfo? RootDir { get; set; }
+
+    /// <summary>
+    /// Search filter for files in subdirectories when stitching them all together
+    /// </summary>
+    [CliOption(Description = "Search filter for files in subdirectories when using --all-subdirs, can contain * and ? wildcards",
+               Arity = CliArgumentArity.ZeroOrOne, Alias = "-f")]
+    public string FileFilter { get; set; } = "*";
+
+    /// <summary>
+    /// Search filter for subdirectories in the root directory when stitching them all together
+    /// </summary>
+    [CliOption(Description = "Search filter for subdirectories in the root directory when using --all-subdirs, can contain * and ? wildcards",
+               Arity = CliArgumentArity.ZeroOrOne)]
+    public string DirectoryFilter { get; set; } = "*";
+
+    /// <summary>
+    /// If the files should be stitched in reverse direction, horizontal default is right to left, vertical is top to bottom
+    /// </summary>
     [CliOption(Description = "If the files should be stitched in reverse direction, horizontal default is right to left, vertical is top to bottom",
                Arity = CliArgumentArity.ZeroOrOne, Alias = "-r")]
     public bool Reverse { get; set; }
 
+    /// <summary>
+    /// Output file prefix
+    /// </summary>
     [CliOption(Description = "Output file prefix", Arity = CliArgumentArity.ZeroOrOne, Alias = "-p")]
     public string Prefix { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Output file separator
+    /// </summary>
     [CliOption(Description = "Output file separator", Arity = CliArgumentArity.ZeroOrOne, Alias = "-s")]
     public string Separator { get; set; } = "-";
 
     /// <inheritdoc />
     public async Task<int> RunAsync(CliContext context)
     {
-        #if DEBUG
+#if DEBUG
         context.ShowValues();
-        #endif
+#endif
 
-        if (this.AllSubfolders && this.Files is not [])
+        // Subdirs stitching
+        if (this.AllSubdirs)
         {
-            return await RunAllSubfolders(context);
+            if (this.Files is not [])
+            {
+                this.Logger.LogError("Cannot use --all-subdirs option when <files> are specified.");
+                return 1;
+            }
+
+            return await RunStitchAllSubfolders(context);
         }
 
+        // Files stitching
         switch (this.Files.Length)
         {
             case 0:
-                this.Logger.LogError("Either <files> or --all-subfolder need to be specified");
+                this.Logger.LogError("Either <files> or --all-subdirs need to be specified");
+                return 1;
+
+            case > 0 when this.RootDir is not null:
+                this.Logger.LogError("Cannot specify --root-dir when passing files");
                 return 1;
 
             case 1:
@@ -80,45 +155,99 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
                 return 0;
 
             default:
-                return await RunFiles(context);
+                return await RunStitchFiles(context);
         }
     }
 
-    private async Task<int> RunAllSubfolders(CliContext context)
+    /// <summary>
+    /// Setups the command for stitching all subdirectories together
+    /// </summary>
+    /// <param name="context">CLI Context instance</param>
+    /// <returns>Exit code</returns>
+    private async Task<int> RunStitchAllSubfolders(CliContext context)
     {
-        if (this.Files is not [])
+        List<StitchDir> stitchDirs = [];
+        this.RootDir ??= new DirectoryInfo(Environment.CurrentDirectory);
+        foreach (DirectoryInfo directory in this.RootDir.EnumerateDirectories(this.DirectoryFilter))
         {
-            this.Logger.LogError("Cannot use --all-subfolders option when <files> are specified.");
+            // Get list of valid files
+            FileInfo[] validFiles = directory.EnumerateFiles(this.FileFilter)
+                                             .Where(f => ValidExtensions.Contains(f.Extension))
+                                             .ToArray();
+            switch (validFiles.Length)
+            {
+                // If none found, ignore
+                case 0:
+                    continue;
+
+                // Not enough files, warn
+                case 1:
+                    this.Logger.LogWarning("Subdirectory {Subdir} only has one stitchable file, skipping", directory.FullName);
+                    continue;
+
+                // Mismatched file extensions, warn
+                case > 1 when !AllExtensionsEqual(validFiles):
+                    this.Logger.LogWarning("Subdirectory {Subdir} found files with mismatched extensions, skipping", directory.FullName);
+                    continue;
+
+                // Valid files found, add to directories to stitch
+                default:
+                    stitchDirs.Add(new StitchDir(directory, validFiles));
+                    break;
+
+            }
+        }
+
+        // None found, error out
+        if (stitchDirs is [])
+        {
+            this.Logger.LogError("No subdirectories contain valid files to stitch");
             return 1;
         }
 
+        // Send request to stitch all subfolders
+        await this.Stitcher.StitchSubfolders(stitchDirs, context.CancellationToken);
         return 0;
     }
 
-    private async Task<int> RunFiles(CliContext context)
+    /// <summary>
+    /// Setups the command for stitching the selected files together
+    /// </summary>
+    /// <param name="context">CLI Context instance</param>
+    /// <returns>Exit code</returns>
+    private async Task<int> RunStitchFiles(CliContext context)
     {
-        string[] extensions = Array.ConvertAll(this.Files, f => f.Extension);
-        if (!AllExtensionsEqual(extensions))
+        // Invalid extension, error out
+        string extension = this.Files[0].Extension;
+        if (!ValidExtensions.Contains(extension))
+        {
+            this.Logger.LogError("Unknown file extension to stitch \"{Extension}\"", extension);
+            return 1;
+        }
+
+        // Mismatched extensions, error out
+        if (!AllExtensionsEqual(this.Files))
         {
             this.Logger.LogError("All file extensions to stitch must be the same");
             return 1;
         }
 
-        if (!ValidExtensions.Contains(extensions[0]))
-        {
-            this.Logger.LogError("Unknown file extension to stitch \"{Extension}\"", extensions[0]);
-            return 1;
-        }
-
+        // Send request to stitch selected files
+        await this.Stitcher.StitchFiles(this.Files, context.CancellationToken);
         return 0;
     }
 
-    private static bool AllExtensionsEqual(ReadOnlySpan<string> extensions)
+    /// <summary>
+    /// Checks whether all the files specified have the same file extension
+    /// </summary>
+    /// <param name="files">Files to check</param>
+    /// <returns><see langword="true"/> if the files have the same extension, otherwise <see langword="false"/></returns>
+    private static bool AllExtensionsEqual(ReadOnlySpan<FileInfo> files)
     {
-        string first = extensions[0];
-        foreach (string other in extensions[1..])
+        string first = files[0].Extension;
+        foreach (FileInfo other in files[1..])
         {
-            if (first != other)
+            if (first != other.Extension)
             {
                 return false;
             }
