@@ -24,19 +24,19 @@ int result;
 if (args is [])
 {
     // If no args, print help
-    result = await Cli.RunAsync<ImageStitcherCommand>(["-h"]);
+    result = await Cli.RunAsync<ImageStitcherCommand>(["-h"]).ConfigureAwait(false);
 }
 else
 {
     try
     {
         // Try running the command
-        result = await Cli.RunAsync<ImageStitcherCommand>(args);
+        result = await Cli.RunAsync<ImageStitcherCommand>(args).ConfigureAwait(false);
     }
     catch (Exception e)
     {
         // Log exceptions
-        await Console.Error.WriteLineAsync($"[{e.GetType().Name}]: {e.Message}\n{e.StackTrace}");
+        await Console.Error.WriteLineAsync($"[{e.GetType().Name}]: {e.Message}\n{e.StackTrace}").ConfigureAwait(false);
         result = 1;
     }
 }

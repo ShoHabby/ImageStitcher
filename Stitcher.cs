@@ -27,8 +27,8 @@ public class Stitcher(ILogger<Stitcher> logger)
         await Parallel.ForEachAsync(subfolders, token, async (subfolder, cancellationToken) =>
         {
             this.Logger.LogInformation("Stitching subfolder {Subfolder}", subfolder.Directory.FullName);
-            await StitchFiles(command, subfolder.Files, command.GenerateOutputName(subfolder), cancellationToken);
-        });
+            await StitchFiles(command, subfolder.Files, command.GenerateOutputName(subfolder), cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -70,7 +70,7 @@ public class Stitcher(ILogger<Stitcher> logger)
         }
 
         string outputPath = Path.Combine(outputDir.FullName, outputName);
-        await stitched.WriteAsync(outputPath, token);
+        await stitched.WriteAsync(outputPath, token).ConfigureAwait(false);
         this.Logger.LogInformation("Stitched file {Path}", outputPath);
     }
 }

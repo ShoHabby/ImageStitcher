@@ -154,7 +154,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
                 return 1;
             }
 
-            return await RunStitchAllSubfolders(context);
+            return await RunStitchAllSubfolders(context).ConfigureAwait(false);
         }
 
         // Files stitching
@@ -169,7 +169,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
                 return 0;
 
             default:
-                return await RunStitchFiles(context);
+                return await RunStitchFiles(context).ConfigureAwait(false);
         }
     }
 
@@ -227,7 +227,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         }
 
         // Send request to stitch all subfolders
-        await this.Stitcher.StitchSubfolders(this, stitchDirs, context.CancellationToken);
+        await this.Stitcher.StitchSubfolders(this, stitchDirs, context.CancellationToken).ConfigureAwait(false);
         return 0;
     }
 
@@ -254,7 +254,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         }
 
         // Send request to stitch selected files
-        await this.Stitcher.StitchFiles(this, this.Files, GenerateOutputName(this.Files), context.CancellationToken);
+        await this.Stitcher.StitchFiles(this, this.Files, GenerateOutputName(this.Files), context.CancellationToken).ConfigureAwait(false);
         return 0;
     }
 
