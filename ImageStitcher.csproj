@@ -6,6 +6,21 @@
         <LangVersion>13.0</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <Title>Image Stitcher</Title>
+        <Authors>Copyright © 2025 Sho Habby Scans</Authors>
+        <Description>Image stitching CLI utility intended for manga/manwha use</Description>
+        <Copyright>Sho Habby Scans</Copyright>
+        <RepositoryUrl>https://github.com/ShoHabby/ImageStitcher</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
+        <InformationalVersion>1.0.0.0</InformationalVersion>
+        <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageTags>Image,Stitch</PackageTags>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DebugType>none</DebugType>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,6 +32,10 @@
       <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
       <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.7" />
       <PackageReference Include="System.CommandLine" Version="2.0.0-beta6.25358.103" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
 </Project>

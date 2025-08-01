@@ -32,7 +32,7 @@ public readonly record struct StitchDir(DirectoryInfo Directory, FileInfo[] File
 /// </summary>
 /// <param name="logger">Command logger</param>
 /// <param name="stitcher">Stitcher service</param>
-[CliCommand(Description = "Image stitcher utility")]
+[CliCommand(Description = "Image stitching CLI utility intended for manga/manwha use")]
 public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher stitcher) : ICliRunAsyncWithContextAndReturn
 {
     /// <summary>
