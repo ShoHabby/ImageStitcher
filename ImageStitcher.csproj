@@ -11,13 +11,13 @@
         <Description>Image stitching CLI utility intended for manga/manwha use</Description>
         <Copyright>Copyright © 2025 Sho Habby Scans</Copyright>
         <RepositoryUrl>https://github.com/ShoHabby/ImageStitcher</RepositoryUrl>
-        <Version>0.1.0.0</Version>
-        <InformationalVersion>0.1.0.0</InformationalVersion>
+        <Version>1.0.0.0</Version>
+        <InformationalVersion>1.0.0.0</InformationalVersion>
         <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <PackageTags>Image,Stitch</PackageTags>
+        <PackageTags>Image,Stitch,Stitcher,Manga,Manwha,Manhua</PackageTags>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>stitcher</ToolCommandName>
     </PropertyGroup>
