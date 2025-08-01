@@ -1,4 +1,5 @@
-﻿using System.Collections.Frozen;
+﻿using System.Buffers;
+using System.Collections.Frozen;
 using DotMake.CommandLine;
 using Microsoft.Extensions.Logging;
 
@@ -50,6 +51,11 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
     ];
 
     /// <summary>
+    /// Invalid file name characters
+    /// </summary>
+    private static readonly SearchValues<char> InvalidFileChars = SearchValues.Create(Path.GetInvalidFileNameChars());
+
+    /// <summary>
     /// Command logger
     /// </summary>
     private ILogger Logger { get; } = logger;
@@ -83,23 +89,23 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
     /// <summary>
     /// Root directory from where to stitch subdirectories when stitching them all together
     /// </summary>
-    [CliOption(Description = "Root directory from where to stitch subdirectories with --all-subdirs",
-               Required = false, Arity = CliArgumentArity.ZeroOrOne, Alias = "-d", ValidationRules = CliValidationRules.ExistingDirectory)]
+    [CliOption(Description = "Root directory from where to stitch subdirectories with --all-subdirs, or where to save the stitched image otherwise",
+               Required = false, Arity = CliArgumentArity.ZeroOrOne, Alias = "-d", ValidationRules = CliValidationRules.LegalPath)]
     public DirectoryInfo? RootDir { get; set; }
 
     /// <summary>
     /// Search filter for files in subdirectories when stitching them all together
     /// </summary>
     [CliOption(Description = "Search filter for files in subdirectories when using --all-subdirs, can contain * and ? wildcards",
-               Arity = CliArgumentArity.ZeroOrOne, Alias = "-f")]
+               Arity = CliArgumentArity.ZeroOrOne, Alias = "-ff")]
     public string FileFilter { get; set; } = "*";
 
     /// <summary>
     /// Search filter for subdirectories in the root directory when stitching them all together
     /// </summary>
     [CliOption(Description = "Search filter for subdirectories in the root directory when using --all-subdirs, can contain * and ? wildcards",
-               Arity = CliArgumentArity.ZeroOrOne)]
-    public string DirectoryFilter { get; set; } = "*";
+               Arity = CliArgumentArity.ZeroOrOne, Alias = "-df")]
+    public string DirFilter { get; set; } = "*";
 
     /// <summary>
     /// If the files should be stitched in reverse direction, horizontal default is right to left, vertical is top to bottom
@@ -123,9 +129,21 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
     /// <inheritdoc />
     public async Task<int> RunAsync(CliContext context)
     {
-#if DEBUG
+        #if DEBUG
         context.ShowValues();
-#endif
+        #endif
+
+        // Validate file chars
+        if (HasInvalidChars(this.Separator))
+        {
+            this.Logger.LogError("File name separator ({Separator}) contains invalid character(s) [{Invalid}]", this.Separator, GetInvalidCharsPrettyPrint());
+            return 1;
+        }
+        if (HasInvalidChars(this.Prefix))
+        {
+            this.Logger.LogError("File name prefix ({Prefix}) contains invalid character(s) [{Invalid}]", this.Prefix, GetInvalidCharsPrettyPrint());
+            return 1;
+        }
 
         // Subdirs stitching
         if (this.AllSubdirs)
@@ -146,10 +164,6 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
                 this.Logger.LogError("Either <files> or --all-subdirs need to be specified");
                 return 1;
 
-            case > 0 when this.RootDir is not null:
-                this.Logger.LogError("Cannot specify --root-dir when passing files");
-                return 1;
-
             case 1:
                 this.Logger.LogWarning("Only one file specified, no stitching to do");
                 return 0;
@@ -166,9 +180,15 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
     /// <returns>Exit code</returns>
     private async Task<int> RunStitchAllSubfolders(CliContext context)
     {
-        List<StitchDir> stitchDirs = [];
         this.RootDir ??= new DirectoryInfo(Environment.CurrentDirectory);
-        foreach (DirectoryInfo directory in this.RootDir.EnumerateDirectories(this.DirectoryFilter))
+        if (!this.RootDir.Exists)
+        {
+            this.Logger.LogError("Cannot stitch subfolders of {Directory} as it does not exist", this.RootDir.FullName);
+            return 1;
+        }
+
+        List<StitchDir> stitchDirs = [];
+        foreach (DirectoryInfo directory in this.RootDir.EnumerateDirectories(this.DirFilter))
         {
             // Get list of valid files
             FileInfo[] validFiles = directory.EnumerateFiles(this.FileFilter)
@@ -176,8 +196,9 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
                                              .ToArray();
             switch (validFiles.Length)
             {
-                // If none found, ignore
+                // If none found, warn
                 case 0:
+                    this.Logger.LogWarning("Subdirectory {Subdir} has no stitchable file, skipping", directory.FullName);
                     continue;
 
                 // Not enough files, warn
@@ -244,7 +265,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
     /// <returns>The resulting stitched file name</returns>
     private string GenerateOutputName(FileInfo[] files)
     {
-        string result = string.Join(this.Separator, files.Select(f => f.Name)) + files[0].Extension;
+        string result = string.Join(this.Separator, files.Select(f => Path.ChangeExtension(f.Name, null))) + files[0].Extension;
         if (!string.IsNullOrEmpty(this.Prefix))
         {
             result = this.Prefix + result;
@@ -262,7 +283,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         string result = subdirectory.Directory.Name + subdirectory.Files[0].Extension;
         if (!string.IsNullOrEmpty(this.Prefix))
         {
-            result = this.Prefix + result;
+            result = this.Prefix + this.Separator + result;
         }
         return result;
     }
@@ -284,5 +305,59 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Checks if a given string value contains invalid file name characters
+    /// </summary>
+    /// <param name="value">String value to validate</param>
+    /// <returns><see langword="true"/> if the value has invalid file characters, otherwise <see langword="false"/></returns>
+    private static bool HasInvalidChars(string? value) => !string.IsNullOrEmpty(value)
+                                                       && value.AsSpan().ContainsAny(InvalidFileChars);
+
+    /// <summary>
+    /// Gets a pretty printable list of invalid file name characters
+    /// </summary>
+    /// <returns>Enumerable of formatted invalid characters</returns>
+    /// ReSharper disable once CognitiveComplexity
+    private static IEnumerable<string> GetInvalidCharsPrettyPrint()
+    {
+        foreach (char c in Path.GetInvalidFileNameChars())
+        {
+            switch (c)
+            {
+                case '\0':
+                    yield return @"\0";
+                    break;
+                case '\a':
+                    yield return @"\a";
+                    break;
+                case '\b':
+                    yield return @"\b";
+                    break;
+                case '\f':
+                    yield return @"\f";
+                    break;
+                case '\n':
+                    yield return @"\n";
+                    break;
+                case '\r':
+                    yield return @"\r";
+                    break;
+                case '\t':
+                    yield return @"\t";
+                    break;
+                case '\v':
+                    yield return @"\v";
+                    break;
+
+                case var _ when char.IsControl(c):
+                    continue;
+
+                default:
+                    yield return c.ToString();
+                    break;
+            }
+        }
     }
 }

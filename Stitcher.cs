@@ -23,7 +23,7 @@ public class Stitcher(ILogger<Stitcher> logger)
     /// <param name="token">Cancellation token</param>
     public async Task StitchSubfolders(ImageStitcherCommand command, IReadOnlyList<StitchDir> subfolders, CancellationToken token)
     {
-        this.Logger.LogInformation("Stitching subfolder");
+        this.Logger.LogInformation("Stitching {Count} subfolder(s)...", subfolders.Count);
         await Parallel.ForEachAsync(subfolders, token, async (subfolder, cancellationToken) =>
         {
             this.Logger.LogInformation("Stitching subfolder {Subfolder}", subfolder.Directory.FullName);
@@ -41,7 +41,7 @@ public class Stitcher(ILogger<Stitcher> logger)
     public async ValueTask StitchFiles(ImageStitcherCommand command, FileInfo[] files, string outputName, CancellationToken token)
     {
         using MagickImageCollection original = new();
-        if (command.Reverse)
+        if (command.Reverse || command.Direction is Direction.Horizontal)
         {
             for (int i = files.Length - 1; i >= 0; i--)
             {
@@ -63,7 +63,13 @@ public class Stitcher(ILogger<Stitcher> logger)
             _                    => throw new InvalidEnumArgumentException(nameof(command.Direction), (int)command.Direction, typeof(Direction))
         };
 
-        string outputPath = Path.Combine(command.RootDir!.FullName, outputName);
+        DirectoryInfo outputDir = command.RootDir ?? files[0].Directory!;
+        if (!outputDir.Exists)
+        {
+            outputDir.Create();
+        }
+
+        string outputPath = Path.Combine(outputDir.FullName, outputName);
         await stitched.WriteAsync(outputPath, token);
         this.Logger.LogInformation("Stitched file {Path}", outputPath);
     }
