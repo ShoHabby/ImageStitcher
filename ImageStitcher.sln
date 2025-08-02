@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageStitcher", "ImageStitcher.csproj", "{790726C6-BB7C-4796-8701-6C0575ECFF66}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageStitcher", "ImageStitcher\ImageStitcher.csproj", "{790726C6-BB7C-4796-8701-6C0575ECFF66}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

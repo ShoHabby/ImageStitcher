@@ -27,7 +27,6 @@
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
         <DebugType>none</DebugType>
         <DocumentationFile>bin\Release\ImageStitcher.xml</DocumentationFile>
-        <OutputPath>publish</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>
@@ -36,18 +35,15 @@
         <PackageReference Include="JetBrains.ExternalAnnotations" Version="10.2.163" />
         <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.7.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />
-        <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
         <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.7" />
-        <PackageReference Include="System.CommandLine" Version="2.0.0-beta6.25358.103" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="README.md" Pack="true" PackagePath="\" />
+        <None Include="..\README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include=".github\workflows\publish.yml" />
-        <Content Include=".github\workflows\dotnet-build.yml" />
+        <None Include="..\.github\**\*" Link=".github\%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
 
 </Project>
