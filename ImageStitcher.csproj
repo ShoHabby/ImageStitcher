@@ -6,8 +6,10 @@
         <LangVersion>13.0</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <PackageId>ShoHabby.ImageStitcher</PackageId>
         <Title>Image Stitcher</Title>
         <Authors>Sho Habby Scans</Authors>
+        <Owner>ShoHabby</Owner>
         <Description>Image stitching CLI utility intended for manga/manwha use</Description>
         <Copyright>Copyright © 2025 Sho Habby Scans</Copyright>
         <RepositoryUrl>https://github.com/ShoHabby/ImageStitcher</RepositoryUrl>
@@ -17,6 +19,7 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <RepositoryUrl>https://github.com/ShoHabby/ImageStitcher</RepositoryUrl>
         <PackageTags>Image,Stitch,Stitcher,Manga,Manwha,Manhua</PackageTags>
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>stitcher</ToolCommandName>
@@ -25,6 +28,7 @@
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
       <DebugType>none</DebugType>
       <DocumentationFile>bin\Release\ImageStitcher.xml</DocumentationFile>
+      <OutputPath>publish</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>

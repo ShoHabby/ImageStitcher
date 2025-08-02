@@ -6,5 +6,8 @@ riderModule.iml
 .idea/.idea.ImageStitcher/.idea/
 *.ddargs.json
 *.DotSettings.user
+publish/
 
 [Tt]est/
+
+nuget.config
