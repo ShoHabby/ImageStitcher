@@ -5,7 +5,7 @@ name: Build and Publish NuGet Package
 on:
   push:
     tags:
-      - 'v*.*.*'  # Trigger on version tags like v1.2.3
+      - 'v*.*.*'
 
 jobs:
   publish:
