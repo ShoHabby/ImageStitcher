@@ -43,7 +43,11 @@
 
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="\" />
-        <None Include=".github\workflows\publish.yml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include=".github\workflows\publish.yml" />
+        <Content Include=".github\workflows\dotnet-build.yml" />
     </ItemGroup>
 
 </Project>
