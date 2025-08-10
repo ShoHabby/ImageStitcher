@@ -40,10 +40,8 @@
 
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\" />
-    </ItemGroup>
-
-    <ItemGroup>
         <None Include="..\.github\**\*" Link=".github\%(RecursiveDir)%(Filename)%(Extension)" />
+        <None Include="..\Test\**\*" Link="Test\%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
 
 </Project>

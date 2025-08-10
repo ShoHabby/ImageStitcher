@@ -41,7 +41,7 @@ public class Stitcher(ILogger<Stitcher> logger)
     public async ValueTask StitchFiles(ImageStitcherCommand command, FileInfo[] files, string outputName, CancellationToken token)
     {
         using MagickImageCollection original = new();
-        if (command.Reverse || command.Direction is Direction.Horizontal)
+        if (command is { Reverse: true, Direction: Direction.Vertical } or { Reverse: false, Direction: Direction.Horizontal })
         {
             for (int i = files.Length - 1; i >= 0; i--)
             {

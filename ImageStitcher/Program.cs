@@ -24,7 +24,7 @@ int result;
 if (args is [])
 {
     // If no args, print help
-    result = await Cli.RunAsync<ImageStitcherCommand>(["-h"]).ConfigureAwait(false);
+    result = await Cli.RunAsync<ImageStitcherCommand>("-h").ConfigureAwait(false);
 }
 else
 {
