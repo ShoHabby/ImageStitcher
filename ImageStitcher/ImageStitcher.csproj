@@ -25,7 +25,6 @@
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-        <DebugType>none</DebugType>
         <DocumentationFile>bin\Release\ImageStitcher.xml</DocumentationFile>
     </PropertyGroup>
 
