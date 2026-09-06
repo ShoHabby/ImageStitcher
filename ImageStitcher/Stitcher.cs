@@ -9,6 +9,7 @@ namespace ImageStitcher;
 /// Image stitcher service
 /// </summary>
 /// <param name="logger">Stitcher logger</param>
+/// <param name="options">Stitch options</param>
 public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
 {
     /// <summary>
