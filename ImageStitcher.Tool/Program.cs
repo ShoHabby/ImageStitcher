@@ -1,5 +1,6 @@
 ﻿using DotMake.CommandLine;
 using ImageStitcher;
+using ImageStitcher.Tool;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -15,8 +16,6 @@ Cli.Ext.ConfigureServices(services =>
     {
         builder.AddSerilog(Log.Logger, true);
     });
-
-    services.AddSingleton<Stitcher>();
 });
 
 if (args is [])

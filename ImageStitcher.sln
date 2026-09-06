@@ -1,6 +1,31 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageStitcher", "ImageStitcher\ImageStitcher.csproj", "{790726C6-BB7C-4796-8701-6C0575ECFF66}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageStitcher.Tool", "ImageStitcher.Tool\ImageStitcher.Tool.csproj", "{790726C6-BB7C-4796-8701-6C0575ECFF66}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DDF4054D-992E-499C-B59B-97CF98AFD79A}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\dotnet-build.yml = .github\workflows\dotnet-build.yml
+		.github\workflows\publish.yml = .github\workflows\publish.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{2980D8BE-0789-49F9-AA86-171397BBF225}"
+	ProjectSection(SolutionItems) = preProject
+		Test\01\01.png = Test\01\01.png
+		Test\01\02.png = Test\01\02.png
+		Test\01-02.png = Test\01-02.png
+		Test\01.png = Test\01.png
+		Test\02\03.png = Test\02\03.png
+		Test\02\04.png = Test\02\04.png
+		Test\02.png = Test\02.png
+		Test\03\05.png = Test\03\05.png
+		Test\03\06.png = Test\03\06.png
+		Test\03.png = Test\03.png
+		Test\04.png = Test\04.png
+		Test\05.png = Test\05.png
+		Test\06.png = Test\06.png
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageStitcher", "ImageStitcher\ImageStitcher.csproj", "{D0D74176-7631-4E5E-98E8-DD5BBB94D0D9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +37,9 @@ Global
 		{790726C6-BB7C-4796-8701-6C0575ECFF66}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{790726C6-BB7C-4796-8701-6C0575ECFF66}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{790726C6-BB7C-4796-8701-6C0575ECFF66}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0D74176-7631-4E5E-98E8-DD5BBB94D0D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0D74176-7631-4E5E-98E8-DD5BBB94D0D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0D74176-7631-4E5E-98E8-DD5BBB94D0D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0D74176-7631-4E5E-98E8-DD5BBB94D0D9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

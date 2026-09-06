@@ -3,41 +3,15 @@ using System.Collections.Frozen;
 using DotMake.CommandLine;
 using Microsoft.Extensions.Logging;
 
-namespace ImageStitcher;
-
-/// <summary>
-/// Stitching direction enum
-/// </summary>
-public enum Direction
-{
-    /// <summary> Horizontal stitching </summary>
-    Horizontal,
-    /// <summary> Vertical stitching </summary>
-    Vertical,
-
-    // For parsing purposes
-    /// <summary> Horizontal stitching </summary>
-    [Obsolete($"Use {nameof(Horizontal)} instead", true)]
-    H = Horizontal,
-    /// <summary> Vertical stitching </summary>
-    [Obsolete($"Use {nameof(Vertical)} instead", true)]
-    V = Vertical
-}
-
-/// <summary>
-/// Subdirectory to stitch data
-/// </summary>
-/// <param name="Directory">Directory object</param>
-/// <param name="Files">Valid files of directory to stitch</param>
-public readonly record struct StitchDir(DirectoryInfo Directory, FileInfo[] Files);
+namespace ImageStitcher.Tool;
 
 /// <summary>
 /// Image stitcher command
 /// </summary>
 /// <param name="logger">Command logger</param>
-/// <param name="stitcher">Stitcher service</param>
+/// <param name="stitcherLogger">Stitcher logger</param>
 [CliCommand(Description = "Image stitching CLI utility intended for manga/manwha use")]
-public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher stitcher) : ICliRunAsyncWithContextAndReturn
+public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<Stitcher> stitcherLogger) : ICliRunAsyncWithContextAndReturn
 {
     /// <summary>
     /// Valid extensions list
@@ -65,16 +39,16 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
     private ILogger Logger { get; } = logger;
 
     /// <summary>
-    /// Stitcher service
+    /// Stitcher logger
     /// </summary>
-    private Stitcher Stitcher { get; } = stitcher;
+    private ILogger<Stitcher> SticherLogger { get; } = stitcherLogger;
 
     /// <summary>
     /// Direction to stitch the files in
     /// </summary>
     [CliArgument(Description = "Direction to stitch the files in, h for horizontal, v for vertical",
                  Arity = CliArgumentArity.ExactlyOne, AllowedValues = ["h", "v"])]
-    public Direction Direction { get; set; }
+    public StitchDirection Direction { get; set; }
 
     /// <summary>
     /// List of files to stitch together
@@ -191,7 +165,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
             return 1;
         }
 
-        List<StitchDir> stitchDirs = [];
+        List<StitchDirectory> stitchDirs = [];
         foreach (DirectoryInfo directory in this.RootDir.EnumerateDirectories(this.DirFilter))
         {
             // Get list of valid files
@@ -217,7 +191,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
 
                 // Valid files found, add to directories to stitch
                 default:
-                    stitchDirs.Add(new StitchDir(directory, validFiles));
+                    stitchDirs.Add(new StitchDirectory(directory, validFiles));
                     break;
 
             }
@@ -231,7 +205,9 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         }
 
         // Send request to stitch all subfolders
-        await this.Stitcher.StitchSubfolders(this, stitchDirs, context.CancellationToken).ConfigureAwait(false);
+        StitchOptions options = new(this.Direction, this.RootDir, this.Reverse, this.Prefix, this.Separator);
+        Stitcher stitcher = new(this.SticherLogger, options);
+        await stitcher.StitchSubfolders(stitchDirs, context.CancellationToken).ConfigureAwait(false);
         return 0;
     }
 
@@ -258,38 +234,10 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, Stitcher
         }
 
         // Send request to stitch selected files
-        await this.Stitcher.StitchFiles(this, this.Files, GenerateOutputName(this.Files), context.CancellationToken).ConfigureAwait(false);
+        StitchOptions options = new(this.Direction, this.RootDir, this.Reverse, this.Prefix, this.Separator);
+        Stitcher stitcher = new(this.SticherLogger, options);
+        await stitcher.StitchFiles(this.Files, context.CancellationToken).ConfigureAwait(false);
         return 0;
-    }
-
-    /// <summary>
-    /// Generates the output file name for a collection of files to stitch
-    /// </summary>
-    /// <param name="files">Files to stitch</param>
-    /// <returns>The resulting stitched file name</returns>
-    private string GenerateOutputName(FileInfo[] files)
-    {
-        string result = string.Join(this.Separator, files.Select(f => Path.ChangeExtension(f.Name, null))) + files[0].Extension;
-        if (!string.IsNullOrEmpty(this.Prefix))
-        {
-            result = this.Prefix + result;
-        }
-        return result;
-    }
-
-    /// <summary>
-    /// Generates the output file name for a subdirectory to stitch
-    /// </summary>
-    /// <param name="subdirectory">Subdirectory to stitch</param>
-    /// <returns>The resulting stitching file name</returns>
-    public string GenerateOutputName(StitchDir subdirectory)
-    {
-        string result = subdirectory.Directory.Name + subdirectory.Files[0].Extension;
-        if (!string.IsNullOrEmpty(this.Prefix))
-        {
-            result = this.Prefix + this.Separator + result;
-        }
-        return result;
     }
 
     /// <summary>
