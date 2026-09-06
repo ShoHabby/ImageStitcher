@@ -87,7 +87,7 @@ jobs:
       - name: Push to GitHub Packages
         if: ${{ inputs.dry_run != true }}
         run: |
-          dotnet nuget push ./nupkgs/ImageStitcher.Tool*.nupkg \
+          dotnet nuget push ./nupkgs/ShoHabby.ImageStitcher*.nupkg \
             --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
             --api-key ${{ secrets.GITHUB_TOKEN }}
 
