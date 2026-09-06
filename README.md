@@ -4,7 +4,7 @@ ImageStitcher is an ImageMagick powered CLI image stitcher for manga or longstri
 
 ## Installation
 Installation instructions can be obtained from [nuget.org](https://www.nuget.org/packages/ShoHabby.ImageStitcher/).
-ImageStitcher is built with .NET 9.0 and is required to run it.
+ImageStitcher is built with .NET 10.0 and is required to run it.
 
 ## Usage
 ```
