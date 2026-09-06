@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Frozen;
+using System.ComponentModel;
 using ImageMagick;
 using Microsoft.Extensions.Logging;
 
@@ -10,6 +11,21 @@ namespace ImageStitcher;
 /// <param name="logger">Stitcher logger</param>
 public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
 {
+    /// <summary>
+    /// Valid extensions list
+    /// </summary>
+    public static FrozenSet<string> ValidExtensions { get; } =
+    [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".jfif",
+        ".tiff",
+        ".bmp",
+        ".webp",
+        ".avif"
+    ];
+
     /// <summary>
     /// Stitch options
     /// </summary>
@@ -25,7 +41,7 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
     /// </summary>
     /// <param name="subfolders">Subfolders to stitch</param>
     /// <param name="token">Cancellation token</param>
-    public async Task StitchSubfolders(IReadOnlyList<StitchDirectory> subfolders, CancellationToken token)
+    public async Task StitchSubfolders(IReadOnlyList<StitchDirectory> subfolders, CancellationToken token = default)
     {
         this.Logger.LogInformation("Stitching {Count} subfolder(s)...", subfolders.Count);
         await Parallel.ForEachAsync(subfolders, token, async (subfolder, cancellationToken) =>
@@ -40,7 +56,7 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
     /// </summary>
     /// <param name="files">Files to stitch</param>
     /// <param name="token">Cancellation token</param>
-    public ValueTask StitchFiles(FileInfo[] files, CancellationToken token) => StitchFiles(files, GenerateOutputName(files), token);
+    public ValueTask StitchFiles(IReadOnlyList<FileInfo> files, CancellationToken token = default) => StitchFiles(files, GenerateOutputName(files), token);
 
     /// <summary>
     /// Stitches the given files together
@@ -48,12 +64,12 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
     /// <param name="files">Files to stitch</param>
     /// <param name="outputName">Stitched file name</param>
     /// <param name="token">Cancellation token</param>
-    private async ValueTask StitchFiles(FileInfo[] files, string outputName, CancellationToken token)
+    private async ValueTask StitchFiles(IReadOnlyList<FileInfo> files, string outputName, CancellationToken token)
     {
         using MagickImageCollection original = new();
         if (this.Options is { Reverse: true, Direction: StitchDirection.Vertical } or { Reverse: false, Direction: StitchDirection.Horizontal })
         {
-            for (int i = files.Length - 1; i >= 0; i--)
+            for (int i = files.Count - 1; i >= 0; i--)
             {
                 original.Add(new MagickImage(files[i]));
             }
@@ -73,7 +89,7 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
             _                    => throw new InvalidEnumArgumentException(nameof(options.Direction), (int)this.Options.Direction, typeof(StitchDirection))
         };
 
-        DirectoryInfo outputDir = this.Options.RootDir ?? files[0].Directory!;
+        DirectoryInfo outputDir = this.Options.RootDirectory ?? files[0].Directory!;
         if (!outputDir.Exists)
         {
             outputDir.Create();
@@ -89,7 +105,7 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
     /// </summary>
     /// <param name="files">Files to stitch</param>
     /// <returns>The resulting stitched file name</returns>
-    private string GenerateOutputName(FileInfo[] files)
+    private string GenerateOutputName(IReadOnlyList<FileInfo> files)
     {
         string result = string.Join(this.Options.Separator, files.Select(f => Path.ChangeExtension(f.Name, null))) + files[0].Extension;
         if (!string.IsNullOrEmpty(this.Options.Prefix))

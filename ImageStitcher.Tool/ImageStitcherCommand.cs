@@ -1,5 +1,4 @@
 ﻿using System.Buffers;
-using System.Collections.Frozen;
 using DotMake.CommandLine;
 using Microsoft.Extensions.Logging;
 
@@ -13,21 +12,6 @@ namespace ImageStitcher.Tool;
 [CliCommand(Description = "Image stitching CLI utility intended for manga/manwha use")]
 public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<Stitcher> stitcherLogger) : ICliRunAsyncWithContextAndReturn
 {
-    /// <summary>
-    /// Valid extensions list
-    /// </summary>
-    private static readonly FrozenSet<string> ValidExtensions =
-    [
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".jfif",
-        ".tiff",
-        ".bmp",
-        ".webp",
-        ".avif"
-    ];
-
     /// <summary>
     /// Invalid file name characters
     /// </summary>
@@ -96,13 +80,13 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
     /// Output file prefix
     /// </summary>
     [CliOption(Description = "Output file prefix", Arity = CliArgumentArity.ZeroOrOne, Alias = "-p")]
-    public string Prefix { get; set; } = string.Empty;
+    public string Prefix { get; set; } = StitchOptions.DEFAULT_PREFIX;
 
     /// <summary>
     /// Output file separator
     /// </summary>
     [CliOption(Description = "Output file separator", Arity = CliArgumentArity.ZeroOrOne, Alias = "-s")]
-    public string Separator { get; set; } = "-";
+    public string Separator { get; set; } = StitchOptions.DEFAULT_SEPARATOR;
 
     /// <inheritdoc />
     public async Task<int> RunAsync(CliContext context)
@@ -169,9 +153,8 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
         foreach (DirectoryInfo directory in this.RootDir.EnumerateDirectories(this.DirFilter))
         {
             // Get list of valid files
-            FileInfo[] validFiles = directory.EnumerateFiles(this.FileFilter)
-                                             .Where(f => ValidExtensions.Contains(f.Extension))
-                                             .ToArray();
+            FileInfo[] validFiles = [..directory.EnumerateFiles(this.FileFilter)
+                                                .Where(f => Stitcher.ValidExtensions.Contains(f.Extension))];
             switch (validFiles.Length)
             {
                 // If none found, warn
@@ -193,7 +176,6 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
                 default:
                     stitchDirs.Add(new StitchDirectory(directory, validFiles));
                     break;
-
             }
         }
 
@@ -220,7 +202,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
     {
         // Invalid extension, error out
         string extension = this.Files[0].Extension;
-        if (!ValidExtensions.Contains(extension))
+        if (!Stitcher.ValidExtensions.Contains(extension))
         {
             this.Logger.LogError("Unknown file extension to stitch \"{Extension}\"", extension);
             return 1;
