@@ -20,6 +20,12 @@ on:
         type: boolean
         default: false
 
+      git_only:
+        description: Only publish to github packages
+        required: true
+        type: boolean
+        default: false
+
 jobs:
   publish:
     name: Package and publish build
@@ -78,14 +84,22 @@ jobs:
             /p:PackageVersion=${{ env.VERSION }} \
             --output ./nupkgs
 
+      - name: Push to GitHub Packages
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          dotnet nuget push ./nupkgs/ImageStitcher.Tool*.nupkg \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key ${{ secrets.GITHUB_TOKEN }}
+
       - name: NuGet login
         uses: NuGet/login@v1.2.0
         id: login
+        if: ${{ inputs.git_only != true }}
         with:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Push to NuGet.org
-        if: ${{ inputs.dry_run != true }}
+        if: ${{ inputs.dry_run != true && inputs.git_only != true }}
         run: |
           dotnet nuget push ./nupkgs/*.nupkg \
             --source https://api.nuget.org/v3/index.json \
