@@ -22,6 +22,8 @@
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>stitcher</ToolCommandName>
         <RepositoryType>git</RepositoryType>
+        <SignAssembly>true</SignAssembly>
+        <AssemblyOriginatorKeyFile>Properties\ImageStitcher.Tool.snk</AssemblyOriginatorKeyFile>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
@@ -40,7 +42,6 @@
         <PackageReference Include="DotMake.CommandLine" Version="3.6.0" />
         <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
         <PackageReference Include="JetBrains.ExternalAnnotations" Version="10.2.169" />
-        <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.17.1" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.400">
           <PrivateAssets>all</PrivateAssets>
