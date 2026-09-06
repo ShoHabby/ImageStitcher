@@ -11,3 +11,5 @@ publish/
 [Tt]est/
 
 nuget.config
+
+*.cmdlineargs.json
