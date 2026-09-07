@@ -1,6 +1,7 @@
-﻿using System.Collections.Frozen;
+using System.Collections.Frozen;
 using System.ComponentModel;
 using ImageMagick;
+using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 
 namespace ImageStitcher;
@@ -10,7 +11,8 @@ namespace ImageStitcher;
 /// </summary>
 /// <param name="logger">Stitcher logger</param>
 /// <param name="options">Stitch options</param>
-public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
+[PublicAPI]
+public sealed partial class Stitcher(StitchOptions options, ILogger<Stitcher> logger)
 {
     /// <summary>
     /// Valid extensions list
@@ -38,6 +40,12 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
     private ILogger Logger { get; } = logger;
 
     /// <summary>
+    /// Creates a new Stitcher with default options
+    /// </summary>
+    /// <param name="logger">Stitcher logger</param>
+    public Stitcher(ILogger<Stitcher> logger) : this(StitchOptions.DefaultOptions, logger) { }
+
+    /// <summary>
     /// Stitches files in the given subfolders
     /// </summary>
     /// <param name="subfolders">Subfolders to stitch</param>
@@ -46,7 +54,7 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
     {
         this.Logger.LogInformation("Stitching {Count} subfolder(s)...", subfolders.Count);
         await Parallel.ForEachAsync(subfolders, token, async (subfolder, cancellationToken) =>
-        {
+        LogStitchSubfoldersCount(this.Logger, subfolders.Count);
             this.Logger.LogInformation("Stitching subfolder {Subfolder}", subfolder.Directory.FullName);
             await StitchFiles(subfolder.Files, GenerateOutputName(subfolder), cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
@@ -58,6 +66,7 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
     /// <param name="files">Files to stitch</param>
     /// <param name="token">Cancellation token</param>
     public ValueTask StitchFiles(IReadOnlyList<FileInfo> files, CancellationToken token = default) => StitchFiles(files, GenerateOutputName(files), token);
+        LogStitchSubfolder(this.Logger, subfolder.Directory.FullName);
 
     /// <summary>
     /// Stitches the given files together
@@ -98,7 +107,7 @@ public class Stitcher(ILogger<Stitcher> logger, StitchOptions options)
 
         string outputPath = Path.Combine(outputDir.FullName, outputName);
         await stitched.WriteAsync(outputPath, token).ConfigureAwait(false);
-        this.Logger.LogInformation("Stitched file {Path}", outputPath);
+        LogStitchFile(this.Logger, outputPath);
     }
 
     /// <summary>

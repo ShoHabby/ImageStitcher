@@ -10,7 +10,7 @@ namespace ImageStitcher.Tool;
 /// <param name="logger">Command logger</param>
 /// <param name="stitcherLogger">Stitcher logger</param>
 [CliCommand(Description = "Image stitching CLI utility intended for manga/manwha use")]
-public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<Stitcher> stitcherLogger) : ICliRunAsyncWithContextAndReturn
+public sealed partial class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<Stitcher> stitcherLogger) : ICliRunAsyncWithContextAndReturn
 {
     /// <summary>
     /// Invalid file name characters
@@ -98,12 +98,12 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
         // Validate file chars
         if (HasInvalidChars(this.Separator))
         {
-            this.Logger.LogError("File name separator ({Separator}) contains invalid character(s) [{Invalid}]", this.Separator, GetInvalidCharsPrettyPrint());
+            LogInvalidCharactersInSeparator(this.Logger, this.Separator, GetInvalidCharsPrettyPrint());
             return 1;
         }
         if (HasInvalidChars(this.Prefix))
         {
-            this.Logger.LogError("File name prefix ({Prefix}) contains invalid character(s) [{Invalid}]", this.Prefix, GetInvalidCharsPrettyPrint());
+            LogInvalidCharactersInPrefix(this.Logger, this.Prefix, GetInvalidCharsPrettyPrint());
             return 1;
         }
 
@@ -112,7 +112,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
         {
             if (this.Files is not [])
             {
-                this.Logger.LogError("Cannot use --all-subdirs option when <files> are specified.");
+                LogCannotUseSubdirsWithFiles(this.Logger);
                 return 1;
             }
 
@@ -123,11 +123,11 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
         switch (this.Files.Length)
         {
             case 0:
-                this.Logger.LogError("Either <files> or --all-subdirs need to be specified");
+                LogFilesOrSubdirsNeeded(this.Logger);
                 return 1;
 
             case 1:
-                this.Logger.LogWarning("Only one file specified, no stitching to do");
+                LogOnlyOneFile(this.Logger);
                 return 0;
 
             default:
@@ -145,7 +145,7 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
         this.RootDir ??= new DirectoryInfo(Environment.CurrentDirectory);
         if (!this.RootDir.Exists)
         {
-            this.Logger.LogError("Cannot stitch subfolders of {Directory} as it does not exist", this.RootDir.FullName);
+            LogDirectoryDoesNotExist(this.Logger, this.RootDir.FullName);
             return 1;
         }
 
@@ -159,17 +159,17 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
             {
                 // If none found, warn
                 case 0:
-                    this.Logger.LogWarning("Subdirectory {Subdir} has no stitchable file, skipping", directory.FullName);
+                    LogNoFilesInSubdirectory(this.Logger, directory.FullName);
                     continue;
 
                 // Not enough files, warn
                 case 1:
-                    this.Logger.LogWarning("Subdirectory {Subdir} only has one stitchable file, skipping", directory.FullName);
+                    LogOnlyOneFileInSubdirectory(this.Logger, directory.FullName);
                     continue;
 
                 // Mismatched file extensions, warn
                 case > 1 when !AllExtensionsEqual(validFiles):
-                    this.Logger.LogWarning("Subdirectory {Subdir} found files with mismatched extensions, skipping", directory.FullName);
+                    LogExtensionMismatchInSubdirectory(this.Logger, directory.FullName);
                     continue;
 
                 // Valid files found, add to directories to stitch
@@ -182,13 +182,13 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
         // None found, error out
         if (stitchDirs is [])
         {
-            this.Logger.LogError("No subdirectories contain valid files to stitch");
+            LogSubdirectoriesWithValidFiles(this.Logger);
             return 1;
         }
 
         // Send request to stitch all subfolders
         StitchOptions options = new(this.Direction, this.RootDir, this.Reverse, this.Prefix, this.Separator);
-        Stitcher stitcher = new(this.SticherLogger, options);
+        Stitcher stitcher = new(options, this.SticherLogger);
         await stitcher.StitchSubfolders(stitchDirs, context.CancellationToken).ConfigureAwait(false);
         return 0;
     }
@@ -204,20 +204,20 @@ public class ImageStitcherCommand(ILogger<ImageStitcherCommand> logger, ILogger<
         string extension = this.Files[0].Extension;
         if (!Stitcher.ValidExtensions.Contains(extension))
         {
-            this.Logger.LogError("Unknown file extension to stitch \"{Extension}\"", extension);
+            LogUnknownExtension(this.Logger, extension);
             return 1;
         }
 
         // Mismatched extensions, error out
         if (!AllExtensionsEqual(this.Files))
         {
-            this.Logger.LogError("All file extensions to stitch must be the same");
+            LogExtensionMismatch(this.Logger);
             return 1;
         }
 
         // Send request to stitch selected files
         StitchOptions options = new(this.Direction, this.RootDir, this.Reverse, this.Prefix, this.Separator);
-        Stitcher stitcher = new(this.SticherLogger, options);
+        Stitcher stitcher = new(options, this.SticherLogger);
         await stitcher.StitchFiles(this.Files, context.CancellationToken).ConfigureAwait(false);
         return 0;
     }
