@@ -56,6 +56,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ImageStitcher\ImageStitcher.csproj" />
+      <None Include="..\Test\**\*" Link="Test\%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
 
 </Project>
