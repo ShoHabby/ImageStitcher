@@ -1,8 +1,11 @@
-﻿namespace ImageStitcher;
+﻿using JetBrains.Annotations;
+
+namespace ImageStitcher;
 
 /// <summary>
 /// Stitching direction enum
 /// </summary>
+[PublicAPI]
 public enum StitchDirection
 {
     /// <summary> Horizontal stitching </summary>

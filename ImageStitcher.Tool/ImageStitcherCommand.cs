@@ -23,11 +23,6 @@ public sealed partial class ImageStitcherCommand(ILogger<ImageStitcherCommand> l
     private ILogger Logger { get; } = logger;
 
     /// <summary>
-    /// Stitcher logger
-    /// </summary>
-    private ILogger<Stitcher> SticherLogger { get; } = stitcherLogger;
-
-    /// <summary>
     /// Direction to stitch the files in
     /// </summary>
     [CliArgument(Description = "Direction to stitch the files in, h for horizontal, v for vertical",
@@ -188,7 +183,7 @@ public sealed partial class ImageStitcherCommand(ILogger<ImageStitcherCommand> l
 
         // Send request to stitch all subfolders
         StitchOptions options = new(this.Direction, this.RootDir, this.Reverse, this.Prefix, this.Separator);
-        Stitcher stitcher = new(options, this.SticherLogger);
+        Stitcher stitcher = new(options, stitcherLogger);
         await stitcher.StitchSubfolders(stitchDirs, context.CancellationToken).ConfigureAwait(false);
         return 0;
     }
@@ -217,7 +212,7 @@ public sealed partial class ImageStitcherCommand(ILogger<ImageStitcherCommand> l
 
         // Send request to stitch selected files
         StitchOptions options = new(this.Direction, this.RootDir, this.Reverse, this.Prefix, this.Separator);
-        Stitcher stitcher = new(options, this.SticherLogger);
+        Stitcher stitcher = new(options, stitcherLogger);
         await stitcher.StitchFiles(this.Files, context.CancellationToken).ConfigureAwait(false);
         return 0;
     }

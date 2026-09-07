@@ -1,6 +1,8 @@
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 using System.ComponentModel;
+using System.Text;
 using ImageMagick;
+using ImageStitcher.Extensions;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 
@@ -29,6 +31,9 @@ public sealed partial class Stitcher(StitchOptions options, ILogger<Stitcher> lo
         ".avif"
     ];
 
+    /// <summary> Output file name StringBuilder </summary>
+    private readonly StringBuilder outputBuilder = new(100);
+
     /// <summary>
     /// Stitch options
     /// </summary>
@@ -50,14 +55,14 @@ public sealed partial class Stitcher(StitchOptions options, ILogger<Stitcher> lo
     /// </summary>
     /// <param name="subfolders">Subfolders to stitch</param>
     /// <param name="token">Cancellation token</param>
+    /// <exception cref="ArgumentException">If <paramref name="subfolders"/> is an empty list</exception>
+    /// <exception cref="InvalidEnumArgumentException">If the provided <see cref="StitchDirection"/> in the <see cref="Options"/> is invalid</exception>
     public async Task StitchSubfolders(IReadOnlyList<StitchDirectory> subfolders, CancellationToken token = default)
     {
-        this.Logger.LogInformation("Stitching {Count} subfolder(s)...", subfolders.Count);
-        await Parallel.ForEachAsync(subfolders, token, async (subfolder, cancellationToken) =>
+        if (subfolders is []) throw new ArgumentException("No subfolders to stitch", nameof(subfolders));
+
         LogStitchSubfoldersCount(this.Logger, subfolders.Count);
-            this.Logger.LogInformation("Stitching subfolder {Subfolder}", subfolder.Directory.FullName);
-            await StitchFiles(subfolder.Files, GenerateOutputName(subfolder), cancellationToken).ConfigureAwait(false);
-        }).ConfigureAwait(false);
+        await Parallel.ForEachAsync(subfolders, token, StitchSubfolder).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -65,8 +70,26 @@ public sealed partial class Stitcher(StitchOptions options, ILogger<Stitcher> lo
     /// </summary>
     /// <param name="files">Files to stitch</param>
     /// <param name="token">Cancellation token</param>
-    public ValueTask StitchFiles(IReadOnlyList<FileInfo> files, CancellationToken token = default) => StitchFiles(files, GenerateOutputName(files), token);
+    /// <exception cref="ArgumentException">If <paramref name="files"/> is an empty list</exception>
+    /// <exception cref="InvalidEnumArgumentException">If the provided <see cref="StitchDirection"/> in the <see cref="Options"/> is invalid</exception>
+    public ValueTask StitchFiles(IReadOnlyList<FileInfo> files, CancellationToken token = default)
+    {
+        return files is not []
+                   ? StitchFiles(files, GenerateOutputName(files), token)
+                   : throw new ArgumentException("No files to stitch", nameof(files));
+    }
+
+    /// <summary>
+    /// Stitches files in the given subfolder
+    /// </summary>
+    /// <param name="subfolder">Subfolder to stitch</param>
+    /// <param name="token">Cancellation token</param>
+    /// <exception cref="InvalidEnumArgumentException">If the provided <see cref="StitchDirection"/> in the <see cref="Options"/> is invalid</exception>
+    private ValueTask StitchSubfolder(StitchDirectory subfolder, CancellationToken token)
+    {
         LogStitchSubfolder(this.Logger, subfolder.Directory.FullName);
+        return StitchFiles(subfolder.Files, GenerateOutputName(subfolder), token);
+    }
 
     /// <summary>
     /// Stitches the given files together
@@ -74,8 +97,12 @@ public sealed partial class Stitcher(StitchOptions options, ILogger<Stitcher> lo
     /// <param name="files">Files to stitch</param>
     /// <param name="outputName">Stitched file name</param>
     /// <param name="token">Cancellation token</param>
+    /// <exception cref="InvalidEnumArgumentException">If the provided <see cref="StitchDirection"/> in the <see cref="Options"/> is invalid</exception>
     private async ValueTask StitchFiles(IReadOnlyList<FileInfo> files, string outputName, CancellationToken token)
     {
+        if (files is []) throw new ArgumentException("No files to stitch", nameof(files));
+
+        token.ThrowIfCancellationRequested();
         using MagickImageCollection original = new();
         if (this.Options is { Reverse: true, Direction: StitchDirection.Vertical } or { Reverse: false, Direction: StitchDirection.Horizontal })
         {
@@ -96,7 +123,7 @@ public sealed partial class Stitcher(StitchOptions options, ILogger<Stitcher> lo
         {
             StitchDirection.Horizontal => original.AppendHorizontally(),
             StitchDirection.Vertical   => original.AppendVertically(),
-            _                    => throw new InvalidEnumArgumentException(nameof(options.Direction), (int)this.Options.Direction, typeof(StitchDirection))
+            _                          => throw new InvalidEnumArgumentException(nameof(options.Direction), (int)this.Options.Direction, typeof(StitchDirection))
         };
 
         DirectoryInfo outputDir = this.Options.RootDirectory ?? files[0].Directory!;
@@ -117,12 +144,15 @@ public sealed partial class Stitcher(StitchOptions options, ILogger<Stitcher> lo
     /// <returns>The resulting stitched file name</returns>
     private string GenerateOutputName(IReadOnlyList<FileInfo> files)
     {
-        string result = string.Join(this.Options.Separator, files.Select(f => Path.ChangeExtension(f.Name, null))) + files[0].Extension;
         if (!string.IsNullOrEmpty(this.Options.Prefix))
         {
-            result = this.Options.Prefix + result;
+            this.outputBuilder.Append(this.Options.Prefix)
+                              .Append(this.Options.Separator);
         }
-        return result;
+
+        return this.outputBuilder.AppendJoin(this.Options.Separator, files.Select(f => Path.ChangeExtension(f.Name, null)))
+                                 .Append(files[0].Extension)
+                                 .ToStringAndClear();
     }
 
     /// <summary>
@@ -130,13 +160,16 @@ public sealed partial class Stitcher(StitchOptions options, ILogger<Stitcher> lo
     /// </summary>
     /// <param name="subdirectory">Subdirectory to stitch</param>
     /// <returns>The resulting stitching file name</returns>
-    private string GenerateOutputName(in StitchDirectory subdirectory)
+    private string GenerateOutputName(StitchDirectory subdirectory)
     {
-        string result = subdirectory.Directory.Name + subdirectory.Files[0].Extension;
         if (!string.IsNullOrEmpty(this.Options.Prefix))
         {
-            result = this.Options.Prefix + this.Options.Separator + result;
+            this.outputBuilder.Append(this.Options.Prefix)
+                              .Append(this.Options.Separator);
         }
-        return result;
+
+        return this.outputBuilder.Append(subdirectory.Directory.Name)
+                                 .Append(subdirectory.Files[0].Extension)
+                                 .ToStringAndClear();
     }
 }
